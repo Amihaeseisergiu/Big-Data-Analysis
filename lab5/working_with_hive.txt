@@ -1,0 +1,264 @@
+==== Lab 1 ====
+
+=== Step #1 ===
+
+== 1 ==
+
+cd $ADIR/exercises/analyzing_sales
+
+== 2 ==
+
+hive
+
+== 3 ==
+
+set hive.cli.print.header=true;
+
+== 4 ==
+
+SELECT fname, lname FROM customers WHERE fname LIKE 'Bridg%' AND city='Kansas City';
+
+Bridget	Burch
+
+=== Step #2 ===
+
+== 5 ==
+
+quit;
+
+== 6 ==
+
+hive -e 'SELECT price, brand, name FROM PRODUCTS
+ORDER BY price DESC LIMIT 3'
+
+975149	Byteweasel	Hadoop Cluster, Economy (4-node)
+614559	Gigabux	Server (2U rackmount, eight-core, 64GB, 12TB)
+599319	Krustybitz	Server (2U rackmount, eight-core, 64GB, 12TB)
+
+=== Step #3 ===
+
+== 1 ==
+
+cat verify_tablet_order.hql
+
+== 2 ==
+
+hive -f verify_tablet_order.hql
+
+6621368	Bridget	Burch	2013-05-20 21:17:03
+6662689	Bridget	Burch	2013-05-31 17:31:11
+
+=== Step #4 ===
+
+== 4 ==
+
+SELECT COUNT(DISTINCT cust_id) AS total FROM customers
+
+201375
+
+== 5 ==
+
+SELECT state, COUNT(state) as num FROM customers GROUP BY state ORDER BY num DESC LIMIT 10;
+
+CA 	76278
+
+
+=== Bonus Lab #1 ===
+
+== 1 ==
+
+SELECT name, COUNT(name) AS total
+ FROM products p JOIN order_details od ON p.prod_id == od.prod_id GROUP BY name
+ ORDER BY total DESC LIMIT 3
+
+0 	Tablet PC (10 in. display, 64 GB) 	126895
+1 	Batteries (AAA, 4 pack) 	65945
+2 	F Jack Male-to-Male Cable (36 in.) 	61001
+
+== 2 ==
+
+SELECT SUM(price) AS total FROM products p JOIN order_details od ON p.prod_id == od.prod_id
+ JOIN orders o ON od.order_id == o.order_id WHERE MONTH(o.order_date) == 5 AND YEAR(o.order_date) == 2013
+
+3206820724
+
+== 3 ==
+
+SELECT SUM(price) - SUM(cost) AS total FROM products p JOIN order_details od ON p.prod_id == od.prod_id
+ JOIN orders o ON od.order_id == o.order_id WHERE MONTH(o.order_date) == 5 AND YEAR(o.order_date) == 2013
+ 
+193215556
+
+== 4 ==
+
+SELECT PRINTF("$%.2f", (SUM(price) - SUM(cost)) / 100) AS total 
+ FROM products p JOIN order_details od ON p.prod_id == od.prod_id
+ JOIN orders o ON od.order_id == o.order_id WHERE MONTH(o.order_date) == 5 AND YEAR(o.order_date) == 2013
+ 
+$1932155.56
+
+
+==== Lab: Data Management with Hive ====
+
+=== Step #1 ===
+
+== 1 ==
+
+cd $ADIR/exercises/data_mgmt
+ 
+== 2 ==
+
+sqoop import \
+ --connect jdbc:mysql://localhost/dualcore \
+ --username training --password training \
+ --fields-terminated-by '\t' \
+ --table suppliers \
+ --hive-import
+ 
+== 3 ==
+
+hive 
+
+== 4 ==
+
+SELECT COUNT(*) FROM suppliers WHERE state='TX';
+
+=== Step #2 ===
+
+== 1 ==
+
+CREATE EXTERNAL TABLE employees (
+ emp_id STRING,
+ fname STRING,
+ lname STRING,
+ address STRING,
+ city STRING,
+ state STRING,
+ zipcode STRING,
+ job_title STRING,
+ email STRING,
+ active STRING,
+ salary INT
+) 
+ROW FORMAT DELIMITED
+FIELDS TERMINATED BY '\t'
+STORED AS TEXTFILE
+LOCATION '/dualcore/employees'; 
+
+== 2 ==
+
+SELECT job_title, COUNT(*) AS num
+ FROM employees
+ GROUP BY job_title
+ ORDER BY num DESC
+ LIMIT 3;
+ 
+=== Step #3 ===
+
+== 1 ==
+
+CREATE TABLE ratings (
+ posted TIMESTAMP,
+ cust_id INT,
+ prod_id INT,
+ rating TINYINT,
+ message STRING
+)
+ ROW FORMAT DELIMITED
+ FIELDS TERMINATED BY '\t'; 
+ 
+== 2 ==
+
+DESCRIBE ratings;
+
+== 3 ==
+
+hadoop fs -put $ADIR/data/ratings_2012.txt \
+/user/hive/warehouse/ratings
+
+== 4 ==
+
+SELECT COUNT(*) FROM ratings;
+
+== 5 ==
+
+hadoop fs -put $ADIR/data/ratings_2013.txt /dualcore
+
+== 6 ==
+
+hadoop fs -ls /dualcore/ratings_2013.txt
+
+== 7 ==
+
+LOAD DATA INPATH '/dualcore/ratings_2013.txt' INTO TABLE ratings;
+
+== 8 ==
+
+hadoop fs -ls /dualcore/ratings_2013.txt
+
+== 9 ==
+
+hadoop fs -ls /user/hive/warehouse/ratings
+
+== 10 ==
+
+SELECT COUNT(*) FROM ratings;
+
+=== Step #4 ===
+
+== 1 ==
+
+CREATE TABLE loyalty_program
+ (cust_id INT,
+ fname STRING,
+ lname STRING,
+ email STRING,
+ level STRING,
+ phone MAP<STRING, STRING>,
+ order_ids ARRAY<INT>,
+ order_value STRUCT<min:INT,
+ max:INT,
+ avg:INT,
+ total:INT>)
+ ROW FORMAT DELIMITED
+ FIELDS TERMINATED BY '|'
+ COLLECTION ITEMS TERMINATED BY ','
+ MAP KEYS TERMINATED BY ':';
+ 
+== 2 ==
+
+LOAD DATA LOCAL INPATH 'loyalty_data.txt' INTO TABLE loyalty_program;
+
+== 3 ==
+
+SELECT phone['HOME'] FROM loyalty_program WHERE cust_id = 1200866;
+
+== 4 ==
+
+SELECT order_ids[2] FROM loyalty_program WHERE cust_id = 1200866;
+
+== 5 ==
+
+SELECT order_value.total FROM loyalty_program WHERE cust_id = 1200866;
+
+=== Bonus Lab #1 ===
+
+== 1 ==
+
+ALTER TABLE loyalty_program CHANGE level status STRING;
+
+== 2 ==
+
+DESCRIBE loyalty_program;
+
+== 3 ==
+
+ALTER TABLE loyalty_program RENAME TO reward_program;
+
+== 4 ==
+
+SELECT status FROM reward_program WHERE cust_id = 1200866;
+
+== 5 ==
+
+DROP TABLE reward_program;

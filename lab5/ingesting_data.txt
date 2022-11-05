@@ -1,0 +1,485 @@
+==== Ingesting data commands ====
+
+==== First Lab ====
+
+=== Step #2 ===
+
+== 1 ==
+
+data = LOAD 'sample1.txt' -- TODO finish the LOAD statement
+AS (
+ keyword: chararray,
+ campaign_id: chararray,
+ date: chararray,
+ time: chararray,
+ display_site: chararray,
+ was_clicked: int,
+ cpc: int,
+ country: chararray,
+ placement: chararray
+);
+
+DUMP data;
+
+== 2 ==
+
+pig -x local first_etl.pig
+
+== 3 ==
+
+= a =
+
+usa_only_data = FILTER data BY country == 'USA';
+
+= b =
+
+reordered_fields = FOREACH usa_only GENERATE 
+ campaign_id, date, time, keyword, display_site,
+ placement, was_clicked, cpc;
+ 
+= c =
+
+reordered_fields = FOREACH usa_only GENERATE 
+ campaign_id, date, time,
+ UPPER(TRIM(keyword)),
+ display_site,
+ placement, was_clicked, cpc;
+ 
+== 4 ==
+
+hadoop fs -put $ADIR/data/ad_data1.txt /dualcore
+
+== 5, 6 ==
+
+data = LOAD '/dualcore/ad_data1.txt' -- TODO finish the LOAD statement
+AS (
+ keyword: chararray,
+ campaign_id: chararray,
+ date: chararray,
+ time: chararray,
+ display_site: chararray,
+ was_clicked: int,
+ cpc: int,
+ country: chararray,
+ placement: chararray
+);
+
+usa_only = FILTER data BY country == 'USA';
+
+reordered_fields = FOREACH usa_only GENERATE 
+ campaign_id, date, time,
+ UPPER(TRIM(keyword)),
+ display_site,
+ placement, was_clicked, cpc;
+
+STORE reordered_fields INTO '/dualcore/ad_data1';
+
+= 7 =
+
+pig first_etl.pig
+
+= 8 =
+
+hadoop fs -cat /dualcore/ad_data1/part* | head -20
+
+=== Step #3 ===
+
+== 1 ==
+
+head -n 25 $ADIR/data/ad_data2.txt > sample2.txt
+
+== 2 ==
+
+data = LOAD 'sample2.txt' -- TODO finish the LOAD statement
+USING PigStorage(',')
+AS (
+ campaign_id: chararray,
+ date: chararray,
+ time: chararray,
+ display_site: chararray,
+ placement: chararray,
+ was_clicked: int,
+ cpc: int,
+ keyword: chararray
+);
+
+DUMP data;
+
+== 3 ==
+
+pig -x local second_etl.pig
+
+== 4 ==
+
+= d =
+
+data = LOAD 'sample2.txt' -- TODO finish the LOAD statement
+USING PigStorage(',')
+AS (
+ campaign_id: chararray,
+ date: chararray,
+ time: chararray,
+ display_site: chararray,
+ placement: chararray,
+ was_clicked: int,
+ cpc: int,
+ keyword: chararray
+);
+
+unique_records = DISTINCT data;
+
+DUMP unique_records;
+
+= e =
+
+data = LOAD 'sample2.txt' -- TODO finish the LOAD statement
+USING PigStorage(',')
+AS (
+ campaign_id: chararray,
+ date: chararray,
+ time: chararray,
+ display_site: chararray,
+ placement: chararray,
+ was_clicked: int,
+ cpc: int,
+ keyword: chararray
+);
+
+unique_records = DISTINCT data;
+
+reordered_fields = FOREACH unique_records GENERATE 
+ campaign_id, date, time,
+ UPPER(TRIM(keyword)),
+ display_site,
+ placement, was_clicked, cpc;
+
+DUMP reordered_fields;
+
+= f =
+
+data = LOAD 'sample2.txt' -- TODO finish the LOAD statement
+USING PigStorage(',')
+AS (
+ campaign_id: chararray,
+ date: chararray,
+ time: chararray,
+ display_site: chararray,
+ placement: chararray,
+ was_clicked: int,
+ cpc: int,
+ keyword: chararray
+);
+
+unique_records = DISTINCT data;
+
+reordered_fields = FOREACH unique_records GENERATE 
+ campaign_id,
+ REPLACE(date, '-', '/'),
+ time,
+ UPPER(TRIM(keyword)),
+ display_site,
+ placement, was_clicked, cpc;
+
+DUMP reordered_fields;
+
+== 5 ==
+
+hadoop fs -put $ADIR/data/ad_data2.txt /dualcore
+
+== 6 ==
+
+data = LOAD '/dualcore/ad_data2.txt' -- TODO finish the LOAD statement
+USING PigStorage(',')
+AS (
+ campaign_id: chararray,
+ date: chararray,
+ time: chararray,
+ display_site: chararray,
+ placement: chararray,
+ was_clicked: int,
+ cpc: int,
+ keyword: chararray
+);
+
+unique_records = DISTINCT data;
+
+reordered_fields = FOREACH unique_records GENERATE 
+ campaign_id,
+ REPLACE(date, '-', '/'),
+ time,
+ UPPER(TRIM(keyword)),
+ display_site,
+ placement, was_clicked, cpc;
+
+STORE reordered_fields INTO '/dualcore/ad_data2';
+
+== 7 ==
+
+pig second_etl.pig
+
+== 8 ==
+
+hadoop fs -cat /dualcore/ad_data2/part* | head -15
+
+
+==== Second Lab ====
+
+=== Step #1 ===
+
+== 1 ==
+
+cd $ADIR/exercises/analyze_ads
+
+== 2 ==
+
+hadoop fs -cat /dualcore/ad_data1/part* | head -n 100 > test_ad_data.txt
+
+== 3 ==
+
+-- TODO (A): Replace 'FIXME' to load the test_ad_data.txt file.
+
+data = LOAD 'test_ad_data.txt' AS (campaign_id:chararray,
+             date:chararray, time:chararray,
+             keyword:chararray, display_site:chararray, 
+             placement:chararray, was_clicked:int, cpc:int);
+
+
+-- TODO (B): Include only records where was_clicked has a value of 1
+
+records_was_clicked_1 = FILTER data BY was_clicked == 1;
+
+-- TODO (C): Group the data by the appropriate field
+
+grouped_by_display_site = GROUP records_was_clicked_1 BY display_site;
+
+/* TODO (D): Create a new relation which includes only the 
+ *           display site and the total cost of all clicks 
+ *           on that site
+ */
+
+total_cost_all_clicks = FOREACH grouped_by_display_site 
+	GENERATE group, SUM(records_was_clicked_1.cpc) AS total_click_cost;
+
+-- TODO (E): Sort that new relation by cost (ascending)
+
+sorted_click_cost = ORDER total_cost_all_clicks BY total_click_cost ASC;
+
+-- TODO (F): Display just the first three records to the screen
+
+first_three_records = LIMIT sorted_click_cost 3;
+
+DUMP first_three_records;
+
+== 4 ==
+
+pig –x local low_cost_sites.pig
+
+== 5 ==
+
+-- TODO (A): Replace 'FIXME' to load the test_ad_data.txt file.
+
+data = LOAD '/dualcore/ad_data[12]' AS (campaign_id:chararray,
+             date:chararray, time:chararray,
+             keyword:chararray, display_site:chararray, 
+             placement:chararray, was_clicked:int, cpc:int);
+
+
+-- TODO (B): Include only records where was_clicked has a value of 1
+
+records_was_clicked_1 = FILTER data BY was_clicked == 1;
+
+-- TODO (C): Group the data by the appropriate field
+
+grouped_by_display_site = GROUP records_was_clicked_1 BY display_site;
+
+/* TODO (D): Create a new relation which includes only the 
+ *           display site and the total cost of all clicks 
+ *           on that site
+ */
+
+total_cost_all_clicks = FOREACH grouped_by_display_site 
+	GENERATE group, SUM(records_was_clicked_1.cpc) AS total_click_cost;
+
+-- TODO (E): Sort that new relation by cost (ascending)
+
+sorted_click_cost = ORDER total_cost_all_clicks BY total_click_cost ASC;
+
+-- TODO (F): Display just the first three records to the screen
+
+first_three_records = LIMIT sorted_click_cost 3;
+
+DUMP first_three_records;
+
+== 6 ==
+
+pig low_cost_sites.pig
+
+(bassoonenthusiast.example.com,1246)
+(grillingtips.example.com,4800)
+(footwear.example.com,4898)
+
+=== Step #3 ===
+
+== 1 ==
+
+cp low_cost_sites.pig high_cost_keywords.pig
+
+== 2 ==
+
+-- TODO (A): Replace 'FIXME' to load the test_ad_data.txt file.
+
+data = LOAD '/dualcore/ad_data[12]' AS (campaign_id:chararray,
+             date:chararray, time:chararray,
+             keyword:chararray, display_site:chararray, 
+             placement:chararray, was_clicked:int, cpc:int);
+
+
+-- TODO (B): Include only records where was_clicked has a value of 1
+
+records_was_clicked_1 = FILTER data BY was_clicked == 1;
+
+-- TODO (C): Group the data by the appropriate field
+
+grouped_by_keyword = GROUP records_was_clicked_1 BY keyword;
+
+/* TODO (D): Create a new relation which includes only the 
+ *           display site and the total cost of all clicks 
+ *           on that site
+ */
+
+total_cost_all_clicks = FOREACH grouped_by_keyword 
+	GENERATE group, SUM(records_was_clicked_1.cpc) AS total_click_cost;
+
+-- TODO (E): Sort that new relation by cost (ascending)
+
+sorted_click_cost = ORDER total_cost_all_clicks BY total_click_cost DESC;
+
+-- TODO (F): Display just the first three records to the screen
+
+first_five_records = LIMIT sorted_click_cost 5;
+
+DUMP first_five_records;
+
+== 3 ==
+
+(PRESENT,165606)
+(TABLET,106509)
+(DUALCORE,95124)
+(BARGAIN,67913)
+(MOBILE,56348)
+
+
+=== Bonus Lab #1 ===
+
+== 1 ==
+
+cd bonus_01
+
+== 2 ==
+
+-- Load only the ad_data1 and ad_data2 directories
+data = LOAD '/dualcore/ad_data[12]' AS (campaign_id:chararray,
+             date:chararray, time:chararray,
+             keyword:chararray, display_site:chararray,
+             placement:chararray, was_clicked:int, cpc:int);
+
+-- Include only records where the ad was clicked
+clicked = FILTER data BY was_clicked == 1;
+
+-- A: Group everything so we can call the aggregate function
+
+grouped_clicks = GROUP clicked ALL;
+
+-- B: Count the records 
+
+number_of_clicks = FOREACH grouped_clicks GENERATE SUM(clicked.was_clicked) AS total_clicks;
+
+-- C: Display the result to the screen
+
+DUMP number_of_clicks;
+
+== 3 ==
+
+pig total_click_count.pig
+
+(18243)
+
+=== Bonus Lab#2 ===
+
+== 1 ==
+
+cp total_click_count.pig ../bonus_02/project_next_campaign_cost.pig
+
+== 2 ==
+
+-- Load only the ad_data1 and ad_data2 directories
+data = LOAD '/dualcore/ad_data[12]' AS (campaign_id:chararray,
+             date:chararray, time:chararray,
+             keyword:chararray, display_site:chararray,
+             placement:chararray, was_clicked:int, cpc:int);
+
+-- A: Group everything so we can call the aggregate function
+
+grouped_clicks = GROUP data ALL;
+
+-- B: Count the records 
+
+estimated_cost = FOREACH grouped_clicks GENERATE MAX(data.cpc) * 18243 * 3;
+
+-- C: Display the result to the screen
+
+DUMP estimated_cost;
+
+== 3 ==
+
+pig project_next_campaign_cost.pig
+
+(8756640)
+
+
+=== Bonus Lab#3 ===
+
+== 1 ==
+
+cd ../bonus_03
+
+== 2 ==
+
+-- Load only the ad_data1 and ad_data2 directories
+data = LOAD '/dualcore/ad_data1' AS (campaign_id:chararray,
+             date:chararray, time:chararray,
+             keyword:chararray, display_site:chararray,
+             placement:chararray, was_clicked:int, cpc:int);
+
+grouped = GROUP data BY display_site;
+
+by_site = FOREACH grouped {
+  -- Include only records where the ad was clicked
+  records_ad_was_clicked = FILTER data BY was_clicked == 1;
+
+  -- count the number of records in this group
+
+  /* Calculate the click-through rate by dividing the 
+   * clicked ads in this group by the total number of ads
+   * in this group.
+   */
+  GENERATE group, ((double) COUNT(records_ad_was_clicked)) / COUNT(data) AS ctr;
+};
+
+-- sort the records in ascending order of clickthrough rate
+
+sorted_records = ORDER by_site BY ctr ASC;
+
+-- show just the first three
+
+first_three_records = LIMIT sorted_records 3;
+
+DUMP first_three_records;
+
+== 3 ==
+
+pig lowest_ctr_by_site.pig
+
+(bassoonenthusiast.example.com,0.01000741289844329)
+(grillingtips.example.com,0.01734317343173432)
+(butterworld.example.com,0.0190032269630692)

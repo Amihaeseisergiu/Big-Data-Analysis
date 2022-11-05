@@ -1,0 +1,103 @@
+==== Lab 1 Sentiment Analysis ====
+
+=== Step #1 ===
+
+== 1 ==
+
+cd $ADIR/exercises/sentiment
+
+== 2 ==
+
+SHOW TABLES;
+DESCRIBE ratings;
+
+== 3 ==
+
+SELECT prod_id, FORMAT_NUMBER(avg_rating, 2) AS
+avg_rating
+ FROM (SELECT prod_id, AVG(rating) AS avg_rating,
+ COUNT(*) AS num
+ FROM ratings
+ GROUP BY prod_id) rated
+ WHERE num >= 50
+ ORDER BY avg_rating DESC
+ LIMIT 1;
+ 
+== 4 ==
+
+SELECT prod_id, FORMAT_NUMBER(avg_rating, 2) AS
+avg_rating
+ FROM (SELECT prod_id, AVG(rating) AS avg_rating,
+ COUNT(*) AS num
+ FROM ratings
+ GROUP BY prod_id) rated
+ WHERE num >= 50
+ ORDER BY avg_rating ASC
+ LIMIT 1;
+ 
+=== Step #2 ===
+
+== 1 ==
+
+SELECT EXPLODE(NGRAMS(SENTENCES(LOWER(message)), 2, 5))
+ AS bigrams
+ FROM ratings
+ WHERE prod_id = 1274673;
+
+{"ngram":["this","is"],"estfrequency":166.0}
+{"ngram":["too","expensive"],"estfrequency":104.0}
+{"ngram":["why","does"],"estfrequency":71.0}
+{"ngram":["the","others"],"estfrequency":71.0}
+{"ngram":["times","more"],"estfrequency":71.0}
+
+== 2 ==
+
+SELECT EXPLODE(NGRAMS(SENTENCES(LOWER(message)), 3, 5))
+ AS trigrams
+ FROM ratings
+ WHERE prod_id = 1274673;
+ 
+{"ngram":["more","than","the"],"estfrequency":71.0}
+{"ngram":["one","cost","ten"],"estfrequency":71.0}
+{"ngram":["than","the","others"],"estfrequency":71.0}
+{"ngram":["red","one","cost"],"estfrequency":71.0}
+{"ngram":["ten","times","more"],"estfrequency":71.0}
+ 
+== 3 ==
+
+SELECT message
+ FROM ratings
+ WHERE prod_id = 1274673
+ AND message LIKE '%ten times more%'
+ LIMIT 3;
+
+Why does the red one cost ten times more than the others?
+Why does the red one cost ten times more than the others?
+Why does the red one cost ten times more than the others?
+
+== 4 ==
+
+SELECT DISTINCT(message)
+ FROM ratings
+ WHERE prod_id = 1274673
+ AND message LIKE '%red%';
+ 
+What is so special about red?
+Why does the red one cost ten times more than the others?
+ 
+== 5 ==
+
+SELECT * FROM products where prod_id = 1274673;
+
+1274673	Orion	16 GB USB Flash Drive (Red)	42999	4001	1
+
+== 6 ==
+
+SELECT *
+ FROM products
+ WHERE name LIKE '%16 GB USB Flash Drive%'
+ AND brand='Orion';
+ 
+1274673	Orion	16 GB USB Flash Drive (Red)	42999	4001	1
+1274674	Orion	16 GB USB Flash Drive (Green)	4299	4001	1
+1274675	Orion	16 GB USB Flash Drive (Blue)	4299	4001	1
