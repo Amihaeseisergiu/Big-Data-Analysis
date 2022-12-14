@@ -108,6 +108,7 @@ class Apriori:
 
         c = 2
 
+        print("Fitting stage 1")
         while not supportRdd.isEmpty():
             combined = supportRdd.cartesian(self.uniqueItems)
             combined = combined.map(lambda item: removeReplica(item))
@@ -129,6 +130,7 @@ class Apriori:
             supportRdd = combined_2
             c = c + 1
 
+        print("Fitting final stage")
         sets = baseRdd.cartesian(baseRdd)
         filtered = sets.filter(lambda item: filterForConf(item))
         confidences = filtered.map(lambda item: calculateConfidence(item))

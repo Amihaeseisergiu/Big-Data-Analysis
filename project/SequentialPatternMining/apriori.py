@@ -21,19 +21,28 @@ def print_as_csv(data):
         writer.writerows(data)
 
 
-def main():
+def run_with_percentage_of_data(path, percentage):
+    lines = open(path, "r").readlines()
+    lines = lines[:int(len(lines) * percentage / 100)]
+    filename = f"./temp/test{time.time()}.txt"
+    open(filename, "w").writelines(lines)
     conf = SparkConf().setMaster("local").setAppName("Apriori")
     sc = SparkContext(conf=conf)
 
-    path = "../data/msnbc/data.csv"
-
     # Construct Apriori
-    apriori = Apriori(path, sc, minSupport=2)
+    apriori = Apriori(filename, sc, minSupport=100)
+    print("Loaded data. Starting fitting!")
     supports = apriori.fit()
-    print(supports.collect())
+    for i in supports.collect():
+        print(i)
+    print("Gata")
+
+
+def main():
+    # run_with_percentage_of_data("../data/msnbc/data.csv", 1)  # Works
+    # run_with_percentage_of_data("../data/msnbc/data.csv", 10)  # Works
+    run_with_percentage_of_data("../data/msnbc/data.csv", 50)  #
 
 
 if __name__ == '__main__':
-    # conf = SparkConf().setMaster("local").setAppName("George's K-Means")
-    # sc = SparkContext(conf=conf)
     main()
